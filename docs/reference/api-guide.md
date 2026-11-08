@@ -743,6 +743,7 @@ Registers a new logical actor in the system.
     *   `actor`: `Actor` — the actor to create. Its `metadata` carries the atespace and name (name must be a DNS-1123 label); the `actor_template` ref (atespace + name) selects the `ActorTemplate`.
     *   `actor.source_tag`: (Optional) `ObjectRef` of a `Tag` to seed the actor from. The tag must be taken under the same `ActorTemplate`, must not be marked for deletion, and must be either in the actor's own atespace or `PUBLISHED`. Nothing is copied: the new actor's `status.snapshots` points at the tag's snapshot, under the tag's prefix, until its own first suspend.
     *   `actor.worker_selector`: (Optional) Per-actor `WorkerSelector` merged with the template's `worker_selector` at resume time (actor keys override template keys).
+    *   `actor.metadata.annotations`: (Optional) Immutable decorative, non-queryable key-value metadata on the actor. Keys use Kubernetes label-key format, at most 16 entries and 4096 bytes of keys and values together; keys in `ate.dev` and its subdomains are reserved.
 *   **Response:** the initialized `Actor`.
 
 #### `UpdateActor`
