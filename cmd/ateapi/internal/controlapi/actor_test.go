@@ -200,6 +200,33 @@ func TestUpdateActor(t *testing.T) {
 			wantCode: codes.InvalidArgument,
 		},
 		{
+			name: "metadata.annotations are preserved on update",
+			stored: &ateapi.Actor{
+				Metadata: &ateapi.ResourceMetadata{Annotations: map[string]string{"env": "prod"}},
+			},
+			req: &ateapi.Actor{
+				Metadata:       &ateapi.ResourceMetadata{Annotations: map[string]string{"env": "staging", "owner": "team-a"}},
+				ActorTemplate:  &ateapi.ObjectRef{Atespace: templateNS, Name: templateName},
+				WorkerSelector: &ateapi.Selector{MatchLabels: map[string]string{"tier": "paid"}},
+			},
+			want: &ateapi.Actor{
+				Metadata:       &ateapi.ResourceMetadata{Annotations: map[string]string{"env": "prod"}},
+				WorkerSelector: &ateapi.Selector{MatchLabels: map[string]string{"tier": "paid"}},
+			},
+		},
+		{
+			name: "omitted metadata.annotations on update preserves stored annotations",
+			stored: &ateapi.Actor{
+				Metadata: &ateapi.ResourceMetadata{Annotations: map[string]string{"env": "prod"}},
+			},
+			req: &ateapi.Actor{
+				ActorTemplate: &ateapi.ObjectRef{Atespace: templateNS, Name: templateName},
+			},
+			want: &ateapi.Actor{
+				Metadata: &ateapi.ResourceMetadata{Annotations: map[string]string{"env": "prod"}},
+			},
+		},
+		{
 			name:   "refused while another operation holds the actor",
 			stored: &ateapi.Actor{},
 			req: &ateapi.Actor{
@@ -212,7 +239,8 @@ func TestUpdateActor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.stored.Metadata = &ateapi.ResourceMetadata{Atespace: testAtespace, Name: testActorID}
+			storedAnnotations := tt.stored.GetMetadata().GetAnnotations()
+			tt.stored.Metadata = &ateapi.ResourceMetadata{Atespace: testAtespace, Name: testActorID, Annotations: storedAnnotations}
 			tt.stored.ActorTemplate = &ateapi.ObjectRef{Atespace: templateNS, Name: templateName}
 			tt.stored.Status = &ateapi.ActorStatus{
 				State: ateapi.ActorState_ACTOR_STATE_SUSPENDED,
@@ -229,7 +257,10 @@ func TestUpdateActor(t *testing.T) {
 				defer lease.Close()
 			}
 
-			tt.req.Metadata = created.GetMetadata()
+			reqAnnotations := tt.req.GetMetadata().GetAnnotations()
+			reqMeta := proto.Clone(created.GetMetadata()).(*ateapi.ResourceMetadata)
+			reqMeta.Annotations = reqAnnotations
+			tt.req.Metadata = reqMeta
 			updated, err := svc.UpdateActor(context.Background(), &ateapi.UpdateActorRequest{Actor: tt.req})
 
 			if tt.wantCode != codes.OK {
@@ -249,7 +280,8 @@ func TestUpdateActor(t *testing.T) {
 				t.Fatalf("UpdateActor failed: %v", err)
 			}
 
-			tt.want.Metadata = &ateapi.ResourceMetadata{Atespace: testAtespace, Name: testActorID, Version: 2}
+			wantAnnotations := tt.want.GetMetadata().GetAnnotations()
+			tt.want.Metadata = &ateapi.ResourceMetadata{Atespace: testAtespace, Name: testActorID, Version: 2, Annotations: wantAnnotations}
 			tt.want.ActorTemplate = &ateapi.ObjectRef{Atespace: templateNS, Name: templateName}
 			tt.want.Status = &ateapi.ActorStatus{
 				State: ateapi.ActorState_ACTOR_STATE_SUSPENDED,
