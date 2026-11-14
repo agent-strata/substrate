@@ -408,10 +408,14 @@ func unmarshalRow(b []byte, m proto.Message, kind string, id ...string) error {
 // setCreateMetadata modifies the input metadata to be correct for a create
 // operation.
 func setCreateMetadata(metadata *ateapi.ResourceMetadata) {
-	metadata.Uid = uuid.NewString()
+	if metadata.Uid == "" {
+		metadata.Uid = uuid.NewString()
+	}
 	metadata.Version = 1
-	metadata.CreateTime = timestamppb.Now()
-	metadata.UpdateTime = metadata.CreateTime
+	if metadata.CreateTime == nil {
+		metadata.CreateTime = timestamppb.Now()
+	}
+	metadata.UpdateTime = proto.CloneOf(metadata.CreateTime)
 	metadata.DeleteTime = nil
 }
 
